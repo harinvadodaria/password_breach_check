@@ -30,7 +30,7 @@ b> password_breach_check function
 How to compile:
 1. Obtain MySQL 9.x source code:
    git clone https://github.com/mysql/mysql-server mysql-server
-2.
+2. Obtain libservicebroadcast - https://github.com/harinvadodaria/libservicebroadcast
 3. Create directory <src>/components/password_breach_check and put source code
    for this component in the directory.
 4. Compile the server code.
