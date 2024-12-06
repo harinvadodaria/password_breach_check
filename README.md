@@ -28,11 +28,12 @@ b> password_breach_check function
     data breaches.
 
 How to compile:
-1. Obtain MySQL 8.0 source code:
+1. Obtain MySQL 9.x source code:
    git clone https://github.com/mysql/mysql-server mysql-server
-2. Create directory <src>/components/password_breach_check and put source code
+2.
+3. Create directory <src>/components/password_breach_check and put source code
    for this component in the directory.
-3. Compile the server code.
+4. Compile the server code.
 
 How to install:
 1. Once binaries are compiled, create data directory and start server and

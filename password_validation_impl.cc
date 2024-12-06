@@ -1,13 +1,29 @@
-/* Copyright (c) 2022, All Rights Reserved
+/* MIT License
 
-The software is provided "AS IS", without warranty of any kind, express or
-implied, including but not limited to the warranties of merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or copyright holders be liable for any claim, damages or other
-liability, whether in an action of contract, tort or otherwise, arising from,
-out of or in connection with the software or the use or other dealings in
-the software. */
+Copyright (c) 2024, Harin Vadodaria
 
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. */
+
+#include <algorithm>
+
+#include <mysql/components/services/validate_password.h>
+#include "components/libservicebroadcast/service_broadcast.h"
 #include "password_breach_check.h"
 
 namespace password_breach_check {
@@ -67,9 +83,18 @@ bool Password_validation::unregister_functions() {
     @retval true  Failure
 */
 DEFINE_BOOL_METHOD(Password_validation::validate,
-                   (void *, my_h_string password)) {
+                   (void *thd, my_h_string password)) {
   Breach_checker breach_checker(password);
   long long count = breach_checker.check();
+  if (count == 0) {
+    if (service_broadcast::broadcast([&thd, &password](
+                                         const my_h_service *service_handle) {
+          auto service = reinterpret_cast<SERVICE_TYPE(validate_password) *>(
+              *service_handle);
+          return service->validate(thd, password);
+        }))
+      return true;
+  }
   return count != 0;
 }
 
@@ -85,18 +110,32 @@ DEFINE_BOOL_METHOD(Password_validation::validate,
     @retval true  Failure
 */
 DEFINE_BOOL_METHOD(Password_validation::get_strength,
-                   (void *, my_h_string password, unsigned int *strength)) {
+                   (void *thd, my_h_string password, unsigned int *strength)) {
   *strength = 0;
   Breach_checker breach_checker(password);
   long long count = breach_checker.check();
   if (count == 0) *strength = 100;
+
+  if (count == 0) {
+    if (service_broadcast::broadcast([&thd, &password, &strength](
+                                         const my_h_service *service_handle) {
+          auto service = reinterpret_cast<SERVICE_TYPE(validate_password) *>(
+              *service_handle);
+          unsigned int auto_strength = 0;
+          if (service->get_strength(thd, password, &auto_strength)) return true;
+          *strength = std::min(*strength, auto_strength);
+          return false;
+        }))
+      return true;
+  }
   return false;
 }
 
 /**
   Init function for password_breach_check
 
-  @param [in, out] initid  Structure to hold data to be passed to main function
+  @param [in, out] initid  Structure to hold data to be passed to main
+  function
   @param [in]      args    Argument metadata
   @param [out]     message Buffer to store error message
 
@@ -118,9 +157,9 @@ bool Password_validation::password_breach_check_init(UDF_INIT *initid,
   }
 
   if (args->arg_type[0] != STRING_RESULT) {
-    sprintf(
-        message,
-        "Mismatch in type of argument. Expected string argument for password.");
+    sprintf(message,
+            "Mismatch in type of argument. Expected string argument for "
+            "password.");
     return true;
   }
 

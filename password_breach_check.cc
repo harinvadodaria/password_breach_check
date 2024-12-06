@@ -1,12 +1,24 @@
-/* Copyright (c) 2022, All Rights Reserved
+/* MIT License
 
-The software is provided "AS IS", without warranty of any kind, express or
-implied, including but not limited to the warranties of merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or copyright holders be liable for any claim, damages or other
-liability, whether in an action of contract, tort or otherwise, arising from,
-out of or in connection with the software or the use or other dealings in
-the software. */
+Copyright (c) 2024, Harin Vadodaria
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. */
 
 #include "password_breach_check.h"
 
@@ -34,13 +46,21 @@ const char *URL_PREFIX = "https://api.pwnedpasswords.com/range/";
 /** Wait time(in seconds) between two CURL requests */
 const unsigned int WAIT = 2;
 
+static bool curl_init_done = false;
+
 /** Init CURL */
 void Breach_checker::init_environment() {
   curl_global_init(CURL_GLOBAL_DEFAULT);
+  curl_init_done = true;
 }
 
 /** Deinit CURL */
-void Breach_checker::deinit_environment() { curl_global_cleanup(); }
+void Breach_checker::deinit_environment() {
+  if (curl_init_done) {
+    curl_global_cleanup();
+    curl_init_done = false;
+  }
+}
 
 /**
   Constructor used by password_breach_check function
@@ -60,7 +80,7 @@ Breach_checker::Breach_checker(my_h_string password) : password_{}, retry_{3} {
 
   /* Convert incoming password to UTF8 format */
   if (mysql_service_mysql_string_converter->convert_to_buffer(
-          password, buffer, sizeof(buffer), "utf8")) {
+          password, buffer, sizeof(buffer), "utf8mb3")) {
     raise_error("Failed to convert password to 'utf8' format.", ERROR_LEVEL);
     return;
   }
@@ -235,8 +255,10 @@ bool Breach_checker::password_breach_data(const std::string prefix,
   auto retry = retry_;
 
   CURLcode res;
+  std::stringstream error_message;
 
   while (retry > 0) {
+    error_message.clear();
     Result result;
     CURL *curl = curl_easy_init();
 
@@ -253,18 +275,12 @@ bool Breach_checker::password_breach_data(const std::string prefix,
 
     /* 3. Process and return the result */
     if (res != CURLE_OK) {
-      std::stringstream error_message;
       error_message << "Error making GET request. CURL returned: "
                     << curl_easy_strerror(res);
       raise_error(error_message.str().c_str(), ERROR_LEVEL);
       error_message.str("");
       if (retry > 0) {
         error_message << "Retrying " << retry << " times before giving up.";
-      } else {
-        error_message << "Tried " << retry_
-                      << " times. Giving up. Please verify that "
-                         "https://api.pwnedpasswords.com/range is accessible "
-                         "(Should show 'Invalid API query' as response).";
       }
       raise_error(error_message.str().c_str(), WARNING_LEVEL);
     } else {
@@ -275,6 +291,14 @@ bool Breach_checker::password_breach_data(const std::string prefix,
     curl_easy_cleanup(curl);
     retry--;
     std::this_thread::sleep_for(std::chrono::seconds(WAIT));
+  }
+  if (retry == 0) {
+    error_message.clear();
+    error_message << "Tried " << retry_ << " times for SHA1 prefix: '" << prefix
+                  << "'. Giving up. Please verify that "
+                     "https://api.pwnedpasswords.com/range is accessible "
+                     "(Should show 'Invalid API query' as response).";
+    raise_error(error_message.str().c_str(), WARNING_LEVEL);
   }
   return (res != CURLE_OK);
 }
