@@ -29,6 +29,9 @@ THE SOFTWARE. */
 #include <mysql/components/services/mysql_string.h>
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/components/services/validate_password.h>
+#include <mysql/components/services/security_context.h>
+#include <mysql/components/services/mysql_current_thread_reader.h>
+
 
 #include <sstream> /* std::stringstream */
 #include <string>  /* std::string */
@@ -38,6 +41,9 @@ extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 extern REQUIRES_SERVICE_PLACEHOLDER(mysql_string_converter);
 extern REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
 
 namespace password_breach_check {
 

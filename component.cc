@@ -28,6 +28,9 @@ REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_converter);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 ADD_BROADCAST_SERVICE_PLACEHOLDERS
 
 SERVICE_TYPE(log_builtins) * log_bi;
@@ -98,6 +101,9 @@ BEGIN_COMPONENT_REQUIRES(password_breach_check)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(mysql_string_converter),
     REQUIRES_SERVICE(udf_registration),
+    REQUIRES_SERVICE(mysql_current_thread_reader),
+    REQUIRES_SERVICE(mysql_thd_security_context),
+    REQUIRES_SERVICE(mysql_security_context_options),
     ADD_BROADCAST_SERVICE_DEPENDENCIES END_COMPONENT_REQUIRES();
 
 /* component description */
