@@ -136,8 +136,23 @@ long long Breach_checker::check() const {
       /* Last entry in the list. There is no new line at the end of the list. */
       count = std::stoll(out_data.substr(pos + 1));
     }
+    // We need to get some info like user and host
+    Security_context_handle ctx = nullptr;
+    MYSQL_THD thd;
+    mysql_service_mysql_current_thread_reader->get(&thd);
+    mysql_service_mysql_thd_security_context->get(thd, &ctx);
+    MYSQL_LEX_CSTRING user; 
+    MYSQL_LEX_CSTRING host;
+
+    mysql_service_mysql_security_context_options->get(ctx, "priv_user",
+                                                        &user);
+  
+    mysql_service_mysql_security_context_options->get(ctx, "priv_host",
+                                                        &host);
+
     std::stringstream error_message;
     error_message << "The password with SHA1 prefix '" << prefix
+                  << "' entered by '" << user.str << "'@'" << host.str
                   << "' has appeared " << count
                   << " times in password breaches.";
     raise_error(error_message.str().c_str(), WARNING_LEVEL);
